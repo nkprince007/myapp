@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:english_words/english_words.dart';
 import 'package:StartupName/database_helpers.dart';
+import 'package:StartupName/styles.dart';
+import 'package:StartupName/suggestions.dart';
 
-void main() => runApp(MyApp());
+void main() => runApp(App());
 
 class RandomWordsState extends State<RandomWords> {
   final _suggestions = <WordPair>[];
   final _saved = Set<WordPair>();
-  final _biggerFont = const TextStyle(fontSize: 18.0);
 
   RandomWordsState() {
     DatabaseHelper.instance.queryAllNames().then((names) {
       var wordPairs = names.map((name) => name.toWordPair());
       setState(() {
+        _suggestions.insertAll(0, wordPairs);
         _saved.addAll(wordPairs);
       });
     });
@@ -23,38 +25,40 @@ class RandomWordsState extends State<RandomWords> {
     return ListTile(
       title: Text(
         pair.asPascalCase,
-        style: _biggerFont,
+        style: biggerFont,
       ),
-      trailing: Icon(
-        alreadySaved ? Icons.favorite : Icons.favorite_border,
-        color: alreadySaved ? Colors.red : null,
-      ),
-      onTap: () async {
-        var name = Name.fromWordPair(pair);
-        if (alreadySaved) {
-          await DatabaseHelper.instance.deleteName(name.first, name.second);
-        } else {
-          await DatabaseHelper.instance.insert(name);
-        }
-
-        setState(() {
+      trailing: IconButton(
+        icon: Icon(
+          alreadySaved ? Icons.favorite : Icons.favorite_border,
+          color: alreadySaved ? Colors.red : null,
+        ),
+        onPressed: () async {
+          var name = Name.fromWordPair(pair);
           if (alreadySaved) {
-            _saved.remove(pair);
+            await DatabaseHelper.instance.deleteName(name.first, name.second);
           } else {
-            _saved.add(pair);
+            await DatabaseHelper.instance.insert(name);
           }
-        });
-      },
+
+          setState(() {
+            if (alreadySaved) {
+              _saved.remove(pair);
+            } else {
+              _saved.add(pair);
+            }
+          });
+        },
+      ),
     );
   }
 
   Widget _buildSuggestions() {
     return ListView.builder(
         padding: const EdgeInsets.all(16.0),
-        itemBuilder: /*1*/ (context, i) {
-          if (i.isOdd) return Divider(); /*2*/
+        itemBuilder: (context, i) {
+          if (i.isOdd) return Divider();
 
-          final index = i ~/ 2; /*3*/
+          final index = i ~/ 2;
           if (index >= _suggestions.length) {
             _suggestions.addAll(generateWordPairs().take(10)); /*4*/
           }
@@ -62,20 +66,11 @@ class RandomWordsState extends State<RandomWords> {
         });
   }
 
-  void _pushSaved() {
-    Navigator.of(context)
-        .push(MaterialPageRoute<void>(builder: (BuildContext context) {
-      final tiles = _saved.map((WordPair pair) {
-        return ListTile(title: Text(pair.asPascalCase, style: _biggerFont));
-      });
-      final divided =
-          ListTile.divideTiles(context: context, tiles: tiles).toList();
-      return Scaffold(
-          appBar: AppBar(
-            title: Text('Saved suggestions'),
-          ),
-          body: ListView(children: divided));
-    }));
+  void _pushSaved() async {
+    await Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (BuildContext context) => Suggestions(_saved)));
   }
 
   @override
@@ -89,8 +84,7 @@ class RandomWordsState extends State<RandomWords> {
         actions: <Widget>[
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 20.0),
-            child: IconButton(
-                icon: Icon(Icons.history), onPressed: _pushSaved),
+            child: IconButton(icon: Icon(Icons.history), onPressed: _pushSaved),
           )
         ],
       ),
@@ -104,14 +98,14 @@ class RandomWords extends StatefulWidget {
   RandomWordsState createState() => RandomWordsState();
 }
 
-class MyApp extends StatelessWidget {
+class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Startup Name Generator',
       home: RandomWords(),
-      theme: ThemeData(primaryColor: Colors.red),
+      theme: ThemeData(primaryColor: Colors.green),
     );
   }
 }
